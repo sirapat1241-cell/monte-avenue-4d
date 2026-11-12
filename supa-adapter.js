@@ -10,7 +10,7 @@
   const err = (code, message) => Object.assign(new Error(message || code), {code});
   const configured = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase && window.supabase.createClient);
   const sb = configured ? window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'implicit' } }) : null;
-  const BUCKET = 'photos';
+  const BUCKET = 'monte-photos';
 
   const state = { data: {progress:{}, days:{}}, listeners: {progress:new Set(), days:new Set()}, email: null, editor: false, error: null };
   const snap = col => ({ docs: Object.entries(state.data[col] || {}).map(([id, v]) => ({ id, data: () => v })) });
@@ -22,13 +22,13 @@
   async function loadAll(){
     const all = []; let from = 0;
     for(;;){ // page through in 1000-row chunks
-      const { data, error } = await sb.from('docs').select('col,id,data').range(from, from + 999);
+      const { data, error } = await sb.from('monte_docs').select('col,id,data').range(from, from + 999);
       if(error) throw error; all.push(...data); if(data.length < 1000) break; from += 1000;
     }
     state.data = {progress:{}, days:{}}; all.forEach(r => put(r.col, r.id, r.data));
   }
   function subscribe(){
-    sb.channel('docs-live').on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, p => {
+    sb.channel('monte-docs-live').on('postgres_changes', { event: '*', schema: 'public', table: 'monte_docs' }, p => {
       const r = p.eventType === 'DELETE' ? p.old : p.new; if(!r || !r.col) return;
       if(p.eventType === 'DELETE'){ delete state.data[r.col]?.[r.id]; } else put(r.col, r.id, r.data);
       emit(r.col);
@@ -42,7 +42,7 @@
         doc(id){
           const write = async (doc, merge) => {
             if(!state.editor) throw err('invalid_argument', 'ไม่มีสิทธิ์บันทึก');
-            const { data, error } = await sb.rpc('write_doc', { p_col: col, p_id: id, p_data: doc, p_merge: merge });
+            const { data, error } = await sb.rpc('monte_write_doc', { p_col: col, p_id: id, p_data: doc, p_merge: merge });
             if(error){ throw err(/permission|denied|not allowed|42501/i.test(error.message + error.code) ? 'invalid_argument' : 'server_error', error.message); }
             put(col, id, data); emit(col);
           };
@@ -74,7 +74,7 @@
     try{
       const { data: { session } } = await sb.auth.getSession();
       state.email = session?.user?.email || null;
-      if(state.email){ const { data } = await sb.rpc('is_editor'); state.editor = data === true; }
+      if(state.email){ const { data } = await sb.rpc('monte_is_editor'); state.editor = data === true; }
       await loadAll(); subscribe();
     }catch(e){ console.error(e); state.error = 'เชื่อมต่อฐานข้อมูลไม่สำเร็จ: ' + (e.message || e); }
   })();
