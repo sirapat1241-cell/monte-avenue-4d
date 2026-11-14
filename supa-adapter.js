@@ -75,6 +75,7 @@
       const { data: { session } } = await sb.auth.getSession();
       state.email = session?.user?.email || null;
       if(state.email){ const { data } = await sb.rpc('monte_is_editor'); state.editor = data === true; }
+      window.MONTE_EDITOR = state.editor;
       await loadAll(); subscribe();
     }catch(e){ console.error(e); state.error = 'เชื่อมต่อฐานข้อมูลไม่สำเร็จ: ' + (e.message || e); }
   })();

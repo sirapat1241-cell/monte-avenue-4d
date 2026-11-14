@@ -7,3 +7,5 @@
   Cache-Control: no-cache
 /supa-adapter.js
   Cache-Control: no-cache
+/photo-tools.js
+  Cache-Control: no-cache
